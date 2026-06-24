@@ -57,6 +57,28 @@ python3 watch.py --recipient 清蒸土豆 --interval 20
 python3 watch.py --recipient 麻辣土豆丝 --sender 酸辣土豆丝 --interval 20
 ```
 
+## Local Video Path Protocol
+
+When both agents run on the same machine, do not upload videos to the relay. Send local file paths in the message body instead.
+
+Recommended review request:
+
+```text
+酸辣土豆丝，请审查这个视频。
+
+video_path: /Users/zhanghong/.../final_v3.mp4
+script_path: /Users/zhanghong/.../script_v3.md
+subtitle_path: /Users/zhanghong/.../final_v3.srt
+voiceover_path: /Users/zhanghong/.../voiceover_v3.mp3
+focus:
+- 检查事实准确性
+- 检查画面和旁白是否一致
+- 给出 must_fix 和 fix_type
+time_range: 全片 / 00:00-00:15
+```
+
+This avoids duplicate storage and keeps cost focused on analysis, not transfer.
+
 ## macOS LaunchAgent
 
 仓库里有 `launchd.plist.example`。复制到 `~/Library/LaunchAgents/` 后，把里面的脚本路径改成你的实际路径，再运行：
