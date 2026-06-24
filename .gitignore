@@ -1,0 +1,5 @@
+__pycache__/
+*.py[cod]
+messages.db
+logs/
+.DS_Store
