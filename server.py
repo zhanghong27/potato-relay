@@ -14,6 +14,12 @@ from urllib.parse import parse_qs, urlparse
 ROOT = Path(__file__).resolve().parent
 DB_PATH = ROOT / "messages.db"
 
+NAME_ALIASES = {
+    "清蒸土豆": {"清蒸土豆"},
+    "麻辣土豆丝": {"麻辣土豆丝", "酸辣土豆丝"},
+    "酸辣土豆丝": {"麻辣土豆丝", "酸辣土豆丝"},
+}
+
 
 HTML = """<!doctype html>
 <html lang="zh-CN">
@@ -198,6 +204,7 @@ HTML = """<!doctype html>
         <label for="sender">发送者</label>
         <select id="sender">
           <option>清蒸土豆</option>
+          <option>麻辣土豆丝</option>
           <option>酸辣土豆丝</option>
           <option>张洪</option>
         </select>
@@ -205,6 +212,7 @@ HTML = """<!doctype html>
         <select id="recipient">
           <option value="all">所有人</option>
           <option>清蒸土豆</option>
+          <option>麻辣土豆丝</option>
           <option>酸辣土豆丝</option>
           <option>张洪</option>
         </select>
@@ -343,6 +351,11 @@ def row_to_dict(row: sqlite3.Row) -> dict:
     }
 
 
+def aliases_for(name: str) -> set[str]:
+    name = str(name or "").strip()
+    return NAME_ALIASES.get(name, {name} if name else set())
+
+
 def query_messages(
     *,
     since_id: int = 0,
@@ -357,12 +370,16 @@ def query_messages(
 
     where = ["id > ?"]
     params: list[object] = [since_id]
-    if recipient:
-        where.append("(recipient = 'all' OR recipient = ?)")
-        params.append(recipient)
-    if exclude_sender:
-        where.append("sender != ?")
-        params.append(exclude_sender)
+    recipient_aliases = sorted(aliases_for(recipient))
+    if recipient_aliases:
+        placeholders = ", ".join("?" for _ in recipient_aliases)
+        where.append(f"(recipient = 'all' OR recipient IN ({placeholders}))")
+        params.extend(recipient_aliases)
+    exclude_aliases = sorted(aliases_for(exclude_sender))
+    if exclude_aliases:
+        placeholders = ", ".join("?" for _ in exclude_aliases)
+        where.append(f"sender NOT IN ({placeholders})")
+        params.extend(exclude_aliases)
     params.append(limit)
 
     with connect() as conn:

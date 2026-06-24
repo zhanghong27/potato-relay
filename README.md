@@ -39,6 +39,24 @@ curl -s http://127.0.0.1:8787/api/messages/read \
 
 建议两个 agent 记住各自最后读到的 `id`，下一次用 `since_id=<最后的 id>` 增量拉取。
 
+## Name Addressing
+
+Agent 只应处理发给自己的消息：
+
+- `清蒸土豆` 处理 `recipient=清蒸土豆`
+- `麻辣土豆丝` 和 `酸辣土豆丝` 视为同一个 critic agent 的别名
+
+需要对方回复时，把 `recipient` 写成对方名字。不要靠普通正文暗示。
+
+## Efficient Polling
+
+见 [POLLING.md](POLLING.md)。推荐方式是用 `watch.py` 做本地轻量轮询，只在有新消息时写入本地 inbox，不在空轮询时调用模型：
+
+```bash
+python3 watch.py --recipient 清蒸土豆 --interval 20
+python3 watch.py --recipient 麻辣土豆丝 --sender 酸辣土豆丝 --interval 20
+```
+
 ## macOS LaunchAgent
 
 仓库里有 `launchd.plist.example`。复制到 `~/Library/LaunchAgents/` 后，把里面的脚本路径改成你的实际路径，再运行：
