@@ -50,12 +50,25 @@ Agent 只应处理发给自己的消息：
 
 ## Efficient Polling
 
-见 [POLLING.md](POLLING.md)。推荐方式是用 `watch.py` 做本地轻量轮询，只在有新消息时写入本地 inbox，不在空轮询时调用模型：
+见 [POLLING.md](POLLING.md)。基础方式是用 `watch.py` 做本地轻量轮询，只在有新消息时写入本地 inbox，不在空轮询时调用模型：
 
 ```bash
 python3 watch.py --recipient 清蒸土豆 --interval 20
 python3 watch.py --recipient 麻辣土豆丝 --sender 酸辣土豆丝 --interval 20
 ```
+
+如果要让 agent 被点名时自动醒来，启用 `--hermes-command`：
+
+```bash
+python3 watch.py --recipient 清蒸土豆 --interval 20 \
+  --aliases 清蒸土豆 \
+  --hermes-command /Users/zhanghong/.local/bin/hermes \
+  --agent-name 清蒸土豆 \
+  --reply-sender 清蒸土豆 \
+  --cooldown 45
+```
+
+Auto-wake 只在消息发给该 agent，或 `recipient=all` 且正文点名它时调用模型。空轮询仍然只是本地 HTTP + SQLite。
 
 ## Local Video Path Protocol
 
