@@ -259,6 +259,11 @@ def trigger_hermes(args: argparse.Namespace, messages: list[dict]) -> bool:
         env = os.environ.copy()
         env.setdefault("HOME", str(Path.home()))
         env.setdefault("HERMES_ACCEPT_HOOKS", "1")
+        launchd_path = (
+            f"{Path.home()}/.local/bin:"
+            "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+        )
+        env["PATH"] = f"{launchd_path}:{env.get('PATH', '')}" if env.get("PATH") else launchd_path
         proc = subprocess.run(
             cmd,
             cwd=str(Path.home()),
@@ -273,8 +278,8 @@ def trigger_hermes(args: argparse.Namespace, messages: list[dict]) -> bool:
         if proc.stderr:
             print(proc.stderr.rstrip(), flush=True)
         if proc.returncode != 0:
-            print(f"Hermes trigger exited with code {proc.returncode}; no relay reply posted.", flush=True)
-            return True
+            print(f"Hermes trigger exited with code {proc.returncode}; message will be retried later.", flush=True)
+            return False
 
         reply = extract_json_object(proc.stdout)
         if reply is None:
@@ -283,8 +288,8 @@ def trigger_hermes(args: argparse.Namespace, messages: list[dict]) -> bool:
         post_reply(args, reply)
         return True
     except subprocess.TimeoutExpired:
-        print(f"Hermes trigger timed out after {args.trigger_timeout}s; no relay reply posted.", flush=True)
-        return True
+        print(f"Hermes trigger timed out after {args.trigger_timeout}s; message will be retried later.", flush=True)
+        return False
     finally:
         release_lock(lock_path, fd)
 
