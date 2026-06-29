@@ -190,6 +190,44 @@ def extract_json_object(output: str) -> dict | None:
     return None
 
 
+def fallback_reply_from_output(args: argparse.Namespace, output: str, messages: list[dict]) -> dict | None:
+    text = strip_ansi(output).strip()
+    if not text:
+        return None
+
+    text = re.sub(r"\n+session_id:\s*\S+\s*$", "", text).strip()
+    markers = [
+        "\n---\n\n1. 简短结论",
+        "\n1. 简短结论",
+        "\n审查完成",
+        "\nNow I have all the data. Let me compose the final review.",
+    ]
+    starts = [(idx, marker) for marker in markers if (idx := text.find(marker)) >= 0]
+    if starts:
+        idx, marker = min(starts, key=lambda item: item[0])
+        text = text[idx:].strip()
+        if marker.startswith("\n---"):
+            text = text.removeprefix("---").strip()
+        if text.startswith("Now I have all the data. Let me compose the final review."):
+            text = text.split("\n", 1)[1].strip() if "\n" in text else ""
+
+    text = text.strip()
+    if not text:
+        return None
+
+    sender = str(args.reply_sender or args.agent_name or args.recipient).strip()
+    recipient = ""
+    for msg in reversed(messages):
+        candidate = str(msg.get("sender") or "").strip()
+        if candidate and candidate != sender:
+            recipient = candidate
+            break
+    if not sender or not recipient:
+        return None
+
+    return {"action": "reply", "sender": sender, "recipient": recipient, "text": text}
+
+
 def post_reply(args: argparse.Namespace, reply: dict) -> None:
     action = str(reply.get("action") or "").strip().lower()
     if action in {"ignore", "none", "noop", ""}:
@@ -284,8 +322,12 @@ def trigger_hermes(args: argparse.Namespace, messages: list[dict]) -> bool:
 
         reply = extract_json_object(proc.stdout)
         if reply is None:
-            print("Hermes trigger did not return a parseable JSON object; no relay reply posted.", flush=True)
+            reply = fallback_reply_from_output(args, proc.stdout, messages)
+        if reply is None:
+            print("Hermes trigger did not return a parseable reply; no relay reply posted.", flush=True)
             return True
+        if "action" in reply and reply.get("action") == "reply" and "session_id:" in str(reply.get("text", "")):
+            reply["text"] = re.sub(r"\n+session_id:\s*\S+\s*$", "", str(reply["text"])).strip()
         post_reply(args, reply)
         return True
     except subprocess.TimeoutExpired:
